@@ -1,0 +1,25 @@
+[project]
+name = "weather-service-py"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "dotenv>=0.9.9",
+    "fastapi>=0.118.3",
+    "pydantic[email]>=2.12.0",
+    "requests>=2.32.5",
+    "uvicorn>=0.37.0",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.14.0",
+]
+
+[tool.ruff]
+line-length = 124
+
+[tool.ruff.lint]
+select = ["E", "F", "ANN"]
+ignore = []
