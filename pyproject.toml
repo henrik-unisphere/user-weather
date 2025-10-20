@@ -25,3 +25,6 @@ line-length = 124
 [tool.ruff.lint]
 select = ["E", "F", "ANN"]
 ignore = []
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

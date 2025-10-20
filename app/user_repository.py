@@ -5,7 +5,7 @@ import json
 import os
 import threading
 from pydantic import EmailStr
-from schemas.user_model import User, UserUpdate, UserNames
+from app.schemas.user_model import User, UserUpdate, UserNames
 
 
 def _norm(email: str | EmailStr) -> str:
