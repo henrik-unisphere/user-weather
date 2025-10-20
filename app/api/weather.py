@@ -36,19 +36,11 @@ router = APIRouter(prefix="", tags=["weather"])
         },
         401: {
             "description": "API-Key ungültig oder nicht autorisiert",
-            "content": {
-                "application/json": {
-                    "example": {"detail": "API-Key ungültig oder nicht autorisiert"}
-                }
-            },
+            "content": {"application/json": {"example": {"detail": "API-Key ungültig oder nicht autorisiert"}}},
         },
         404: {
             "description": "Stadt nicht gefunden",
-            "content": {
-                "application/json": {
-                    "example": {"detail": "Stadt nicht gefunden: <city>"}
-                }
-            },
+            "content": {"application/json": {"example": {"detail": "Stadt nicht gefunden: <city>"}}},
         },
         502: {
             "description": "Upstream-Fehler (Timeout/Connection/unerwartetes Schema)",
@@ -57,15 +49,11 @@ router = APIRouter(prefix="", tags=["weather"])
                     "examples": {
                         "timeout": {
                             "summary": "Timeout/Connection",
-                            "value": {
-                                "detail": "OpenWeather nicht erreichbar (Timeout/Connection)"
-                            },
+                            "value": {"detail": "OpenWeather nicht erreichbar (Timeout/Connection)"},
                         },
                         "schema": {
                             "summary": "Antwortschema unerwartet",
-                            "value": {
-                                "detail": "Unerwartetes Antwortschema von OpenWeather"
-                            },
+                            "value": {"detail": "Unerwartetes Antwortschema von OpenWeather"},
                         },
                         "generic": {
                             "summary": "Sonstiger Fehler",
@@ -107,27 +95,19 @@ def get_weather(
     try:
         response = requests.get(BASE_URL + "/weather", params=params, timeout=10)
     except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
-        raise HTTPException(
-            status_code=502, detail="OpenWeather nicht erreichbar (Timeout/Connection)"
-        )
+        raise HTTPException(status_code=502, detail="OpenWeather nicht erreichbar (Timeout/Connection)")
     except requests.exceptions.RequestException:
-        raise HTTPException(
-            status_code=502, detail="Fehler beim Verbinden zu OpenWeather"
-        )
+        raise HTTPException(status_code=502, detail="Fehler beim Verbinden zu OpenWeather")
 
     # url = f"https://api.openweathermap.org/data/2.5/weather?q={city}&appid={API_KEY}&units=metric&lang=de"
     # response = requests.get(url)
 
     if response.status_code == 401:
-        raise HTTPException(
-            status_code=401, detail="API-Key ungültig oder nicht autorisiert"
-        )
+        raise HTTPException(status_code=401, detail="API-Key ungültig oder nicht autorisiert")
     if response.status_code == 404:
         raise HTTPException(status_code=404, detail=f"Stadt nicht gefunden: {city}")
     if response.status_code != 200:
-        raise HTTPException(
-            status_code=502, detail="Fehler beim Abrufen der Wetterdaten"
-        )
+        raise HTTPException(status_code=502, detail="Fehler beim Abrufen der Wetterdaten")
 
     try:
         data = response.json()
@@ -141,9 +121,7 @@ def get_weather(
             wind_speed=data["wind"]["speed"],
         )
     except (ValueError, KeyError, IndexError, TypeError):
-        raise HTTPException(
-            status_code=502, detail="Unerwartetes Antwortschema von OpenWeather"
-        )
+        raise HTTPException(status_code=502, detail="Unerwartetes Antwortschema von OpenWeather")
 
     return result
 
@@ -175,19 +153,11 @@ def get_weather(
         },
         401: {
             "description": "API-Key ungültig oder nicht autorisiert",
-            "content": {
-                "application/json": {
-                    "example": {"detail": "API-Key ungültig oder nicht autorisiert"}
-                }
-            },
+            "content": {"application/json": {"example": {"detail": "API-Key ungültig oder nicht autorisiert"}}},
         },
         404: {
             "description": "Stadt nicht gefunden",
-            "content": {
-                "application/json": {
-                    "example": {"detail": "Stadt nicht gefunden: <city>"}
-                }
-            },
+            "content": {"application/json": {"example": {"detail": "Stadt nicht gefunden: <city>"}}},
         },
         502: {
             "description": "Upstream-Fehler (Timeout/Connection/unerwartetes Schema)",
@@ -196,15 +166,11 @@ def get_weather(
                     "examples": {
                         "timeout": {
                             "summary": "Timeout/Connection",
-                            "value": {
-                                "detail": "OpenWeather nicht erreichbar (Timeout/Connection)"
-                            },
+                            "value": {"detail": "OpenWeather nicht erreichbar (Timeout/Connection)"},
                         },
                         "schema": {
                             "summary": "Antwortschema unerwartet",
-                            "value": {
-                                "detail": "Unerwartetes Antwortschema von OpenWeather"
-                            },
+                            "value": {"detail": "Unerwartetes Antwortschema von OpenWeather"},
                         },
                         "generic": {
                             "summary": "Sonstiger Fehler",
@@ -244,24 +210,16 @@ def get_forecast(city: str = Query(..., min_length=1, description="city name")) 
     try:
         response = requests.get(BASE_URL + "/forecast", params=params, timeout=10)
     except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
-        raise HTTPException(
-            status_code=502, detail="OpenWeather nicht erreichbar (Timeout/Connection)"
-        )
+        raise HTTPException(status_code=502, detail="OpenWeather nicht erreichbar (Timeout/Connection)")
     except requests.exceptions.RequestException:
-        raise HTTPException(
-            status_code=502, detail="Fehler beim Verbinden zu OpenWeather"
-        )
+        raise HTTPException(status_code=502, detail="Fehler beim Verbinden zu OpenWeather")
 
     if response.status_code == 401:
-        raise HTTPException(
-            status_code=401, detail="API-Key ungültig oder nicht autorisiert"
-        )
+        raise HTTPException(status_code=401, detail="API-Key ungültig oder nicht autorisiert")
     if response.status_code == 404:
         raise HTTPException(status_code=404, detail=f"Stadt nicht gefunden: {city}")
     if response.status_code != 200:
-        raise HTTPException(
-            status_code=502, detail="Fehler beim Abrufen der Wetterdaten"
-        )
+        raise HTTPException(status_code=502, detail="Fehler beim Abrufen der Wetterdaten")
 
     try:
         data = response.json()
@@ -293,8 +251,6 @@ def get_forecast(city: str = Query(..., min_length=1, description="city name")) 
         #                       description=data["list"][0]["weather"][0]["description"])
 
     except (ValueError, KeyError, IndexError, TypeError):
-        raise HTTPException(
-            status_code=502, detail="Unerwartetes Antwortschema von OpenWeather"
-        )
+        raise HTTPException(status_code=502, detail="Unerwartetes Antwortschema von OpenWeather")
 
     return items
