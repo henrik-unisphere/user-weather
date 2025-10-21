@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Path as PathParam, status, Depends
 from pydantic import EmailStr
-from user_repository import UserRepository
-from schemas.user_model import User, UserResponse, UserUpdate, UserNames
+from app.user_repository import UserRepository
+from app.schemas.user_model import User, UserResponse, UserUpdate, UserNames
 from typing import List
 from pathlib import Path as FilePath
 

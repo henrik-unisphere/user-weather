@@ -1,8 +1,8 @@
 from dotenv import load_dotenv
 from fastapi import FastAPI
 import uvicorn
-from api.weather import router as weather_router
-from api.user import router as user_router
+from app.api.weather import router as weather_router
+from app.api.user import router as user_router
 
 load_dotenv()
 

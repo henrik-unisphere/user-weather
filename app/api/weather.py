@@ -2,7 +2,7 @@ import os
 from fastapi import APIRouter, HTTPException, Query
 import requests
 from typing import List
-from schemas.weather_model import WeatherResponse, ForecastItem
+from app.schemas.weather_model import WeatherResponse, ForecastItem
 
 
 API_KEY = os.getenv("OPENWEATHER_API_KEY")
