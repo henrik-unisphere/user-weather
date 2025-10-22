@@ -1,11 +1,10 @@
-import os
 from fastapi import APIRouter, HTTPException, Query
 import requests
 from typing import List
 from app.schemas.weather_model import WeatherResponse, ForecastItem
+from app.settings import settings
 
-
-API_KEY = os.getenv("OPENWEATHER_API_KEY")
+API_KEY = settings.OPENWEATHER_API_KEY
 BASE_URL = "https://api.openweathermap.org/data/2.5"
 
 router = APIRouter(prefix="", tags=["weather"])

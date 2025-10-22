@@ -1,17 +1,23 @@
 from fastapi import APIRouter, HTTPException, Path as PathParam, status, Depends
 from pydantic import EmailStr
-from app.user_repository import UserRepository
 from app.schemas.user_model import User, UserResponse, UserUpdate, UserNames
 from typing import List
-from pathlib import Path as FilePath
+from app.settings import settings
 
-APP_DIR = FilePath(__file__).resolve().parent.parent  # .../app
-DATA_PATH = APP_DIR / "data" / "users.json"
-dev_repo = UserRepository(DATA_PATH)
+# from app.user_db_repo import UserRepository
+# from app.user_repository import UserRepository
+from app.user_alchemy_repo import UserRepository
+# from pathlib import Path as FilePath
+
+# APP_DIR = FilePath(__file__).resolve().parent.parent  # .../app
+# DATA_PATH = APP_DIR / "data" / "users.json"
+# dev_repo = UserRepository(DATA_PATH)
+
+db_repo = UserRepository(settings.DATABASE_URL)
 
 
 def get_repo() -> UserRepository:
-    return dev_repo
+    return db_repo
 
 
 router = APIRouter(prefix="/users", tags=["user"])

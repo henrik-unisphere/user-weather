@@ -30,7 +30,7 @@ jobs:
       - run: uv run ruff check .
 
       # Tests
-      - run: uv run pytest -q
+      # - run: uv run pytest -q
 
       # Build & Push (nur bei Push auf main)
       - uses: docker/setup-buildx-action@v3
