@@ -419,7 +419,7 @@
                 <div>
                     <div class="label-soft">Benutzer</div>
                     <div class="user-pill">
-                        {{ user.get("preferred_username") or user.get("email") or "unbekannt" }}
+                        {{ user.get("first_name") + " " + user.get("last_name") or "unbekannt" }}
                     </div>
                 </div>
 

@@ -1,10 +1,10 @@
 from typing import Awaitable, Callable
-from starlette.middleware.base import BaseHTTPMiddleware
-from fastapi import Request, Response
+
 from authlib.jose import jwt
+from fastapi import Request, Response
+from starlette.middleware.base import BaseHTTPMiddleware
+
 from app.auth.oauth import OAuthWrapper
-from app.auth.settings import settings
-from app.user_alchemy_repo import UserRepository
 
 
 class JWTMiddleware(BaseHTTPMiddleware):
@@ -35,7 +35,7 @@ class JWTMiddleware(BaseHTTPMiddleware):
             except Exception as e:
                 # Token evtl. abgelaufen -> versuchen zu refreshen
                 print("Token validation failed, trying refresh:", e)
-                refreshed = await self.oauth_wrapper.attempt_refresh(request, raw_token)
+                refreshed = await self.oauth_wrapper.attempt_refresh(claims.get("sub"))
                 if refreshed is not None:
                     # refreshed enthält (claims, new_id_token)
                     claims, new_id_token = refreshed

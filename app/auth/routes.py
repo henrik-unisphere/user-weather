@@ -1,11 +1,12 @@
-from typing_extensions import Annotated
+from authlib.integrations.starlette_client import OAuthError
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from starlette.templating import Jinja2Templates
-from authlib.integrations.starlette_client import OAuthError
-from app.auth.dependencies import get_oauth_wrapper, get_user_repo
+from typing_extensions import Annotated
+
 from app.auth.oauth import OAuthWrapper
 from app.auth.settings import settings
+from app.dependencies import get_oauth_wrapper, get_user_repo
 from app.schemas.user_model import User
 from app.user_alchemy_repo import UserRepository
 
@@ -16,8 +17,11 @@ router = APIRouter()
 @router.get("/", response_class=HTMLResponse)
 async def home(request: Request, user_repo: Annotated[UserRepository, Depends(get_user_repo)]) -> HTMLResponse:
     user_data = getattr(request.state, "user", None)
-
-    user = user_repo.repo_get_user(user_data["sub"]) if user_data is not None else None
+    if not user_data:
+        user = {}
+    else:
+        user = user_repo.repo_get_user(user_data["sub"])
+        user = user.model_dump() if user is not None else {}
 
     return templates.TemplateResponse(
         "index.html",
@@ -73,9 +77,8 @@ async def auth(
 
 
 @router.get("/logout")
-async def logout(request: Request) -> RedirectResponse:
-    oauth = request.app.state.oauth
-    metadata = await oauth.keycloak.load_server_metadata()
+async def logout(request: Request, oauth: OAuthWrapper = Depends(get_oauth_wrapper)) -> RedirectResponse:
+    metadata = await oauth.oauth.keycloak.load_server_metadata()
     end = metadata.get("end_session_endpoint")
     home = settings.APP_BASE_URL
     id_token = request.cookies.get("token")
