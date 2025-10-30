@@ -1,13 +1,14 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 import requests
 from typing import List
+from app.auth.auth_dep import get_current_user
 from app.schemas.weather_model import WeatherResponse, ForecastItem
-from app.settings import settings
+from app.auth.settings import settings
 
 API_KEY = settings.OPENWEATHER_API_KEY
 BASE_URL = "https://api.openweathermap.org/data/2.5"
 
-router = APIRouter(prefix="", tags=["weather"])
+router = APIRouter(dependencies=[Depends(get_current_user)])
 
 
 @router.get(
@@ -126,7 +127,7 @@ def get_weather(
 
 
 @router.get(
-    "/weather/forecast",
+    "/forecast",
     response_model=List[ForecastItem],
     summary="Get Weather Forecast in City",
     tags=["weather"],

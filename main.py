@@ -1,20 +1,28 @@
-from dotenv import load_dotenv
-from fastapi import FastAPI
-import uvicorn
-from app.api.weather import router as weather_router
-from app.api.user import router as user_router
-
-load_dotenv()
-
-
-app = FastAPI()
-app.include_router(weather_router, prefix="/api/v1")
-app.include_router(user_router, prefix="/api/v1")
+from fastapi import Depends, FastAPI
+from app.api import weather
+from app.auth import oauth, routes as auth_routes
+from app.auth.dependencies import get_oauth_wrapper
+from app.auth.middleware import JWTMiddleware
+from starlette.middleware.sessions import SessionMiddleware
+from app.auth.settings import settings
+from app.user_alchemy_repo import UserRepository
 
 
-def main() -> None:
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+app = FastAPI(title="Weather + Keycloak Demo")
+app.add_middleware(SessionMiddleware, secret_key=settings.SESSION_SECRET)
+
+
+app.add_middleware(JWTMiddleware, oauth_wrapper=Depends(get_oauth_wrapper))
+app.include_router(auth_routes.router, tags=["auth"])
+app.include_router(weather.router, tags=["weather"])
+
+
+@app.get("/health")
+def health_check():  # noqa: ANN201
+    return {"status": "ok"}
 
 
 if __name__ == "__main__":
-    main()
+    import uvicorn
+
+    uvicorn.run("main:app")

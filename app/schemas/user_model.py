@@ -6,6 +6,7 @@ class User(BaseModel):
     first_name: str
     last_name: str
     email: EmailStr
+    user_id: str
 
 
 class UserResponse(BaseModel):
