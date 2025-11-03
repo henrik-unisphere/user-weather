@@ -1,3 +1,4 @@
+from typing import Optional
 from authlib.integrations.starlette_client import OAuthError
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -9,6 +10,7 @@ from app.auth.settings import settings
 from app.dependencies import get_oauth_wrapper, get_user_repo
 from app.schemas.user_model import User
 from app.user_alchemy_repo import UserRepository
+
 
 templates = Jinja2Templates(directory="app/templates")
 router = APIRouter()
@@ -45,29 +47,29 @@ async def auth(
     except OAuthError as error:
         return HTMLResponse(f"<h1>{error.error}</h1>", status_code=400)
 
-    userinfo = token.get("userinfo")
+    userinfo = token.get("userinfo") or {}
     refresh_token = token.get("refresh_token")
+
     response = RedirectResponse(url="/")
     if userinfo:
         response.set_cookie("token", token["id_token"], httponly=True)
 
     try:
         kc_sub = userinfo.get("sub")  # stabiler OIDC-Identifikator (wichtig!)
-        email = userinfo.get("email") or ""
-        first_name = userinfo.get("given_name") or ""
-        last_name = userinfo.get("family_name") or ""
-
         if kc_sub:
-            existing = repo.repo_get_user(kc_sub)
-            if not existing:
-                new_user = User(
-                    user_id=kc_sub,
-                    email=email,
-                    first_name=first_name,
-                    last_name=last_name,
-                )
+            email = (userinfo.get("email") or "").strip().lower()
+            first_name = userinfo.get("given_name") or ""
+            last_name = userinfo.get("family_name") or ""
+
+            existing = repo.repo_get_user_internal(kc_sub)
+
+            if existing:
+                if refresh_token:
+                    repo.repo_set_refresh_token(kc_sub, refresh_token)
+            else:
+                new_user = User(user_id=kc_sub, email=email, first_name=first_name, last_name=last_name)
                 try:
-                    repo.repo_create_user(new_user)
+                    repo.repo_create_user(new_user, refresh_token=refresh_token)
                 except ValueError:
                     pass
     except Exception as e:
@@ -77,7 +79,18 @@ async def auth(
 
 
 @router.get("/logout")
-async def logout(request: Request, oauth: OAuthWrapper = Depends(get_oauth_wrapper)) -> RedirectResponse:
+async def logout(
+    request: Request, oauth: OAuthWrapper = Depends(get_oauth_wrapper), repo: UserRepository = Depends(get_user_repo)
+) -> RedirectResponse:
+    sub: Optional[str] = None
+    if getattr(request.state, "user", None):
+        sub = request.state.user.get("sub")
+    if sub:
+        try:
+            repo.repo_set_refresh_token(sub, None)
+        except Exception:
+            pass
+
     metadata = await oauth.oauth.keycloak.load_server_metadata()
     end = metadata.get("end_session_endpoint")
     home = settings.APP_BASE_URL

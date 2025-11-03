@@ -1,3 +1,4 @@
+from typing import Tuple
 import httpx
 from authlib.integrations.starlette_client import OAuth
 from authlib.jose import JsonWebKey, KeySet, jwt
@@ -34,7 +35,7 @@ class OAuthWrapper:
             self._jwks = JsonWebKey.import_key_set(jwks_resp.json())
         return self._jwks
 
-    async def attempt_refresh(self, user_id: str):
+    async def attempt_refresh(self, user_id: str) -> Tuple[dict, str]:
         try:
             user_row = self.repo.repo_get_user_internal(user_id)
         except Exception as e:
@@ -44,19 +45,30 @@ class OAuthWrapper:
         if not user_row or not user_row.refresh_token:
             return None
 
-        # 3. neuen Token bei Keycloak anfordern
         try:
-            new_token = await self.oauth.keycloak.refresh_token(
-                url=self.oauth.keycloak.client_metadata["token_endpoint"],
-                refresh_token=user_row.refresh_token,
-            )
+            metadata = await self.oauth.keycloak.load_server_metadata()
+            token_endpoint_url = metadata.get("token_endpoint")
+            print(token_endpoint_url)
+            print(user_row.refresh_token)
+            data = {
+                "client_id": f"{settings.KEYCLOAK_CLIENT_ID}",
+                "grant_type": "refresh_token",
+                "refresh_token": user_row.refresh_token,
+                "client_secret": settings.KEYCLOAK_CLIENT_SECRET,
+            }
+            print(data)
+            async with httpx.AsyncClient() as client:
+                disc = await client.post(token_endpoint_url, data=data)
+                disc.raise_for_status()
+                result = disc.json()
+
         except Exception as e:
             print("Token refresh failed:", e)
             return None
 
         # Erwartet: new_token hat wieder id_token, access_token, evtl. neuen refresh_token
-        new_id_token = new_token.get("id_token")
-        new_refresh_token = new_token.get("refresh_token")
+        new_id_token = result.get("id_token")
+        new_refresh_token = result.get("refresh_token")
 
         if not new_id_token:
             return None

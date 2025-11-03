@@ -98,7 +98,7 @@ class UserRepository:
             s.commit()
             return obj.to_model()
 
-    def repo_set_refresh_token(self, user_id: str, refresh_token: str) -> None:
+    def repo_set_refresh_token(self, user_id: str, refresh_token: Optional[str]) -> None:
         with Session(self._engine) as s:
             obj = s.get(UserORM, user_id)
             if not obj:

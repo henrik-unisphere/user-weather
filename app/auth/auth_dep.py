@@ -9,3 +9,10 @@ def get_current_user(request: Request):  # noqa: ANN201
             detail="Not authenticated",
         )
     return user
+
+
+def require_role_premium(request: Request) -> None:
+    user = get_current_user(request)  # stellt sicher, dass 401 vorher greift
+    roles = set(user.get("roles") or [])
+    if "premium" not in roles:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="premium role required")

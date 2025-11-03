@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 import requests
 from typing import List
-from app.auth.auth_dep import get_current_user
+from app.auth.auth_dep import get_current_user, require_role_premium
 from app.schemas.weather_model import WeatherResponse, ForecastItem
 from app.auth.settings import settings
 
@@ -131,6 +131,7 @@ def get_weather(
     response_model=List[ForecastItem],
     summary="Get Weather Forecast in City",
     tags=["weather"],
+    dependencies=[Depends(require_role_premium)],
     responses={
         200: {
             "description": "Erfolg",
