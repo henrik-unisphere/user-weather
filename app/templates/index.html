@@ -9,8 +9,8 @@
         :root {
             --bg-grad-start: #0f172a;
             --bg-grad-end: #1e293b;
-            --panel-bg: rgba(255, 255, 255, 0.06);
-            --panel-border: rgba(255, 255, 255, 0.12);
+            --panel-bg: rgba(255, 255, 255, .06);
+            --panel-border: rgba(255, 255, 255, .12);
             --text-main: #f8fafc;
             --text-dim: #94a3b8;
             --accent: #4f46e5;
@@ -20,12 +20,13 @@
             --radius-lg: 20px;
             --radius-md: 12px;
             --radius-sm: 8px;
-            --font-stack: system-ui, -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+            --font-stack: system-ui, -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, "Helvetica Neue", sans-serif
         }
 
         body {
             min-height: 100vh;
-            background: radial-gradient(circle at 20% 20%, #1e3a8a22 0%, #0000 60%),
+            background:
+                radial-gradient(circle at 20% 20%, #1e3a8a22 0%, #0000 60%),
                 radial-gradient(circle at 80% 0%, #0ea5e922 0%, #0000 60%),
                 linear-gradient(160deg, var(--bg-grad-start) 0%, var(--bg-grad-end) 100%);
             margin: 0;
@@ -374,12 +375,10 @@
                 <h1 class="headline">Dein persönliches Wetter-Panel</h1>
                 <p class="subline">FastAPI Backend mit Keycloak Login &amp; Live-Daten.</p>
             </div>
-
             <div class="action-area">
                 {% if user %}
                 <a class="btn btn-outline" href="/logout">Logout</a>
                 {% else %}
-                <!-- Ein Button für beides: Login + Registrierung im IdP -->
                 <a class="btn btn-accent" href="/auth">Login / Registrieren</a>
                 {% endif %}
             </div>
@@ -417,7 +416,7 @@
             </details>
         </section>
 
-        <!-- WEATHER PANEL -->
+        <!-- WEATHER NOW PANEL -->
         <section class="panel">
             <div class="panel-head">
                 <h2 class="panel-title"><span>Wetter jetzt abrufen</span><span class="chip">Live API</span></h2>
@@ -445,8 +444,41 @@
             </div>
         </section>
 
-        {% else %}
+        <!-- FORECAST PANEL (Premium) -->
+        <section class="panel">
+            <div class="panel-head">
+                <h2 class="panel-title">
+                    <span>Vorhersage (3 Tage)</span>
+                    <span class="chip">{{ 'Premium' if user.get('is_premium') else 'Premium erforderlich' }}</span>
+                </h2>
+                <p class="panel-desc">Erfordert die Rolle <code>premium</code>.</p>
+            </div>
 
+            <div class="weather-grid">
+                <form class="weather-form" onsubmit="return false;">
+                    <div>
+                        <label class="field-label" for="cityForecast">Stadt</label>
+                        <input class="city-input" id="cityForecast" placeholder="z. B. Konstanz" />
+                    </div>
+                    <button class="btn-fetch" id="fetchForecast" type="button" {% if not user.get('is_premium') %}
+                        disabled title="Premium erforderlich" {% endif %}>
+                        Vorhersage abrufen
+                    </button>
+                </form>
+
+                <div class="weather-result-card">
+                    <div class="result-heading">
+                        <p class="city-name" id="cityNameForecast">Noch nichts geladen</p>
+                        <div id="statusForecast" class="status-line dim">Bereit</div>
+                    </div>
+                    <div class="weather-fields" id="forecastFields">
+                        <div style="color:var(--text-dim); font-size:.8rem;">Bitte zuerst anfragen.</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        {% else %}
         <!-- NOT LOGGED IN PANEL -->
         <section class="panel">
             <div class="panel-head">
@@ -454,20 +486,18 @@
                 </h2>
                 <p class="panel-desc">Bitte über den Identity Provider anmelden oder ein Konto anlegen.</p>
             </div>
-
             <div style="display:flex; gap:.75rem; flex-wrap:wrap;">
                 <a class="btn btn-accent" href="/auth">Login / Registrieren</a>
             </div>
         </section>
-
         {% endif %}
 
         <footer class="app-footer">Weather App · FastAPI · Keycloak</footer>
-
     </div>
 
     {% if user %}
     <script>
+        // --- Aktuelles Wetter ---
         const btn = document.getElementById("fetchWeather");
         const cityInput = document.getElementById("city");
         const statusLine = document.getElementById("status");
@@ -476,12 +506,10 @@
 
         btn.onclick = async () => {
             const city = (cityInput.value || "Konstanz").trim();
-
             statusLine.textContent = "Lade…";
             statusLine.className = "status-line dim";
             cityNameEl.textContent = city;
             fieldsEl.innerHTML = `<div style="color:var(--text-dim); font-size:.8rem;"> Anfrage läuft… </div>`;
-
             try {
                 const res = await fetch(`/weather_current?city=${encodeURIComponent(city)}`);
                 const data = await res.json();
@@ -496,7 +524,6 @@
                 statusLine.textContent = "OK";
                 statusLine.className = "status-line ok";
                 cityNameEl.textContent = data.city || city;
-
                 fieldsEl.innerHTML = `
           <div><span class="label">Beschreibung</span><span class="value">${data.description}</span></div>
           <div><span class="label">Aktuell</span><span class="value">${data.temperature} °C</span></div>
@@ -515,6 +542,81 @@
                 fieldsEl.innerHTML = `<div style="color:var(--error); font-size:.8rem;">Keine Verbindung.</div>`;
             }
         };
+
+        // --- Forecast (Premium) ---
+        const btnFc = document.getElementById("fetchForecast");
+        const cityFcInput = document.getElementById("cityForecast");
+        const statusFc = document.getElementById("statusForecast");
+        const cityNameFc = document.getElementById("cityNameForecast");
+        const fieldsFc = document.getElementById("forecastFields");
+
+        if (btnFc) {
+            // Komfort: Feld vorbefüllen, wenn oben schon eine Stadt steht
+            cityFcInput.value = cityInput.value || "";
+
+            btnFc.onclick = async () => {
+                const city = (cityFcInput.value || "Konstanz").trim();
+                statusFc.textContent = "Lade…";
+                statusFc.className = "status-line dim";
+                cityNameFc.textContent = city;
+                fieldsFc.innerHTML = `<div style="color:var(--text-dim); font-size:.8rem;"> Anfrage läuft… </div>`;
+                try {
+                    const res = await fetch(`/forecast?city=${encodeURIComponent(city)}`);
+
+                    if (res.status === 401) {
+                        statusFc.textContent = "Nicht eingeloggt";
+                        statusFc.className = "status-line err";
+                        fieldsFc.innerHTML = `<div style="color:var(--error); font-size:.85rem;">
+              Bitte <a href="/auth" style="color:inherit; text-decoration:underline;">anmelden</a>.
+            </div>`;
+                        return;
+                    }
+                    if (res.status === 403) {
+                        const data = await res.json().catch(() => ({}));
+                        statusFc.textContent = "Premium erforderlich";
+                        statusFc.className = "status-line err";
+                        fieldsFc.innerHTML = `<div style="color:var(--error); font-size:.85rem;">
+              ${data.detail || "Diese Funktion erfordert die Rolle 'premium'."}
+            </div>`;
+                        return;
+                    }
+
+                    const data = await res.json();
+                    if (!res.ok) {
+                        statusFc.textContent = "Fehler";
+                        statusFc.className = "status-line err";
+                        fieldsFc.innerHTML = `<div style="color:var(--error); font-size:.85rem;">
+              ${data.detail || "Fehler beim Abrufen der Vorhersage"}
+            </div>`;
+                        return;
+                    }
+
+                    statusFc.textContent = "OK";
+                    statusFc.className = "status-line ok";
+                    cityNameFc.textContent = city;
+
+                    if (!Array.isArray(data) || data.length === 0) {
+                        fieldsFc.innerHTML = `<div style="color:var(--text-dim); font-size:.8rem;">Keine Daten.</div>`;
+                        return;
+                    }
+
+                    fieldsFc.innerHTML = data.map(d => `
+            <div style="margin:.4rem 0 .6rem;">
+              <span class="label">Datum</span>
+              <span class="value">${d.date}</span>
+              <div style="display:flex; gap:1.5rem; margin-top:.25rem;">
+                <div><span class="label">Temp</span><span class="value">${d.temperature} °C</span></div>
+                <div><span class="label">Beschreibung</span><span class="value">${d.description}</span></div>
+              </div>
+            </div>
+          `).join("");
+                } catch {
+                    statusFc.textContent = "Netzwerkfehler";
+                    statusFc.className = "status-line err";
+                    fieldsFc.innerHTML = `<div style="color:var(--error); font-size:.8rem;">Keine Verbindung.</div>`;
+                }
+            };
+        }
     </script>
     {% endif %}
 </body>

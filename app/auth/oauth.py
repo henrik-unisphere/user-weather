@@ -67,16 +67,24 @@ class OAuthWrapper:
             return None
 
         # Erwartet: new_token hat wieder id_token, access_token, evtl. neuen refresh_token
-        new_id_token = result.get("id_token")
+        new_access_token = result.get("access_token")
         new_refresh_token = result.get("refresh_token")
 
-        if not new_id_token:
+        if not new_access_token:
             return None
 
         # 4. Neues id_token validieren
         try:
-            new_claims = jwt.decode(new_id_token, await self.get_jwks())
+            new_claims = jwt.decode(new_access_token, await self.get_jwks())
             new_claims.validate()
+
+            roles = (new_claims.get("realm_access") or {}).get("roles") or []
+            is_premium = "premium" in roles
+            try:
+                self.repo.repo_set_is_premium(user_id, is_premium)  # ← Flag aktualisieren
+            except Exception as e:
+                print("Failed to update is_premium:", e)
+
         except Exception as e:
             print("Refreshed token invalid:", e)
             return None
@@ -89,4 +97,4 @@ class OAuthWrapper:
                 print("Failed to update refresh token in DB:", e)
 
         # 6. return an dispatch()
-        return (new_claims, new_id_token)
+        return (new_claims, new_access_token)

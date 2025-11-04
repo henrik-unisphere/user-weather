@@ -1,6 +1,6 @@
 import os
 from typing import Optional
-from sqlalchemy import String, create_engine, select
+from sqlalchemy import Boolean, String, create_engine, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, Session
 from sqlalchemy.exc import IntegrityError
 from pydantic import EmailStr
@@ -22,9 +22,16 @@ class UserORM(Base):
     first_name: Mapped[str] = mapped_column(String, nullable=False)
     last_name: Mapped[str] = mapped_column(String, nullable=False)
     refresh_token: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    is_premium: Mapped[bool] = mapped_column(Boolean, nullable=False)
 
     def to_model(self) -> User:
-        return User(user_id=self.user_id, email=self.email, first_name=self.first_name, last_name=self.last_name)
+        return User(
+            user_id=self.user_id,
+            email=self.email,
+            first_name=self.first_name,
+            last_name=self.last_name,
+            is_premium=self.is_premium or False,
+        )
 
 
 class UserRepository:
@@ -43,13 +50,14 @@ class UserRepository:
             row = s.get(UserORM, user_id)
             return row.to_model() if row else None
 
-    def repo_create_user(self, user: User, refresh_token: str | None = None) -> User:
+    def repo_create_user(self, user: User, refresh_token: str | None = None, is_premium: bool = False) -> User:
         obj = UserORM(
             user_id=user.user_id,
             email=_norm(user.email),
             first_name=user.first_name,
             last_name=user.last_name,
             refresh_token=refresh_token,
+            is_premium=is_premium,
         )
         with Session(self._engine) as s:
             s.add(obj)
@@ -59,6 +67,14 @@ class UserRepository:
                 s.rollback()
                 raise ValueError("conflict")
             return obj.to_model()
+
+    def repo_set_is_premium(self, user_id: str, is_premium: bool) -> None:
+        with Session(self._engine) as s:
+            obj = s.get(UserORM, user_id)
+            if not obj:
+                raise KeyError("not_found")
+            obj.is_premium = is_premium
+            s.commit()
 
     def repo_patch_user(self, user_id: str, upd: UserUpdate) -> User:
         changes = upd.model_dump(exclude_unset=True)
@@ -120,4 +136,5 @@ class UserRepository:
                 first_name=row.first_name,
                 last_name=row.last_name,
                 refresh_token=row.refresh_token,
+                is_premium=row.is_premium,
             )

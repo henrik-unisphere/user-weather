@@ -12,6 +12,11 @@ class Settings(BaseSettings):
     SESSION_SECRET: str  # von dir generiert
     APP_BASE_URL: str = "http://localhost:8000"
 
+    KEYCLOAK_REALM: str
+    KEYCLOAK_ADMIN_CLIENT_ID: str
+    KEYCLOAK_ADMIN_CLIENT_SECRET: str
+    KEYCLOAK_BASE: str
+
     model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore",

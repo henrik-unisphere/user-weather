@@ -1,4 +1,5 @@
 from typing import Optional
+from urllib.parse import urlencode
 from authlib.integrations.starlette_client import OAuthError
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -10,6 +11,7 @@ from app.auth.settings import settings
 from app.dependencies import get_oauth_wrapper, get_user_repo
 from app.schemas.user_model import User
 from app.user_alchemy_repo import UserRepository
+from authlib.jose import jwt
 
 
 templates = Jinja2Templates(directory="app/templates")
@@ -49,27 +51,35 @@ async def auth(
 
     userinfo = token.get("userinfo") or {}
     refresh_token = token.get("refresh_token")
+    access_token = token.get("access_token")
 
     response = RedirectResponse(url="/")
-    if userinfo:
-        response.set_cookie("token", token["id_token"], httponly=True)
+    if access_token:
+        response.set_cookie("access_token", access_token, httponly=True)
 
     try:
-        kc_sub = userinfo.get("sub")  # stabiler OIDC-Identifikator (wichtig!)
+        kc_sub = userinfo.get("sub")
         if kc_sub:
+            claims = jwt.decode(access_token, await oauth_wrapper.get_jwks())
+            claims.validate()
+            roles = (claims.get("realm_access") or {}).get("roles") or []
+            is_premium = "premium" in roles
+
             email = (userinfo.get("email") or "").strip().lower()
             first_name = userinfo.get("given_name") or ""
             last_name = userinfo.get("family_name") or ""
-
             existing = repo.repo_get_user_internal(kc_sub)
 
             if existing:
                 if refresh_token:
                     repo.repo_set_refresh_token(kc_sub, refresh_token)
+                repo.repo_set_is_premium(kc_sub, is_premium)
             else:
-                new_user = User(user_id=kc_sub, email=email, first_name=first_name, last_name=last_name)
+                new_user = User(
+                    user_id=kc_sub, email=email, first_name=first_name, last_name=last_name, is_premium=is_premium
+                )
                 try:
-                    repo.repo_create_user(new_user, refresh_token=refresh_token)
+                    repo.repo_create_user(new_user, refresh_token=refresh_token, is_premium=is_premium)
                 except ValueError:
                     pass
     except Exception as e:
@@ -94,7 +104,10 @@ async def logout(
     metadata = await oauth.oauth.keycloak.load_server_metadata()
     end = metadata.get("end_session_endpoint")
     home = settings.APP_BASE_URL
-    id_token = request.cookies.get("token")
-    response = RedirectResponse(f"{end}?id_token_hint={id_token}&post_logout_redirect_uri={home}/")
-    response.delete_cookie("token")
-    return response
+    params = {
+        "post_logout_redirect_uri": f"{home}/",
+        "client_id": settings.KEYCLOAK_CLIENT_ID,
+    }
+    resp = RedirectResponse(f"{end}?{urlencode(params)}")
+    resp.delete_cookie("access_token")
+    return resp
