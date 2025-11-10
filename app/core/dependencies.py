@@ -1,8 +1,8 @@
 from fastapi import Depends
 
 from app.auth.oauth import OAuthWrapper
-from app.auth.settings import settings
-from app.user_alchemy_repo import UserRepository
+from app.core.settings import settings
+from app.database.user_alchemy_repo import UserRepository
 
 _user_repo = UserRepository(settings.DATABASE_URL)
 _oauth_wrapper = None

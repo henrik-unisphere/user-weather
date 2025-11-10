@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException, Path as PathParam, status, Depends
 from typing import List
 from app.schemas.user_model import User, UserResponse, UserUpdate, UserNames
-from app.auth.settings import settings
-from app.user_alchemy_repo import UserRepository
+from app.core.settings import settings
+from app.database.user_alchemy_repo import UserRepository
 
 db_repo = UserRepository(settings.DATABASE_URL)
 
@@ -42,10 +42,10 @@ def list_users(repo: UserRepository = Depends(get_repo)) -> list[User]:
     "/{user_id}",
     response_model=User,
     summary="Returns User by ID",
-    description="Rückgabe von gefordertem User (user_id = Keycloak sub)",
+    description="Rückgabe von gefordertem User (user_id = Zitadel sub)",
 )
 def get_user(
-    user_id: str = PathParam(..., description="User-ID (Keycloak sub)"),
+    user_id: str = PathParam(..., description="User-ID (Zitadel sub)"),
     repo: UserRepository = Depends(get_repo),
 ) -> User:
     u = repo.repo_get_user(user_id)
@@ -60,7 +60,7 @@ def get_user(
     summary="Partially update user's names",
 )
 def update_user(
-    user_id: str = PathParam(..., description="User-ID (Keycloak sub)"),
+    user_id: str = PathParam(..., description="User-ID (Zitadel sub)"),
     data: UserUpdate = ...,
     repo: UserRepository = Depends(get_repo),
 ) -> UserResponse:
@@ -80,7 +80,7 @@ def update_user(
     summary="Delete user by ID",
 )
 def delete_user(
-    user_id: str = PathParam(..., description="User-ID (Keycloak sub)"),
+    user_id: str = PathParam(..., description="User-ID (Zitadel sub)"),
     repo: UserRepository = Depends(get_repo),
 ) -> UserResponse:
     try:
@@ -96,7 +96,7 @@ def delete_user(
     summary="Replace user's names",
 )
 def override_user(
-    user_id: str = PathParam(..., description="User-ID (Keycloak sub)"),
+    user_id: str = PathParam(..., description="User-ID (Zitadel sub)"),
     data: UserNames = ...,
     repo: UserRepository = Depends(get_repo),
 ) -> UserResponse:

@@ -3,8 +3,8 @@ import httpx
 from authlib.integrations.starlette_client import OAuth
 from authlib.jose import JsonWebKey, KeySet, jwt
 
-from app.auth.settings import settings
-from app.user_alchemy_repo import UserRepository
+from app.core.settings import settings
+from app.database.user_alchemy_repo import UserRepository
 
 
 class OAuthWrapper:
@@ -13,11 +13,13 @@ class OAuthWrapper:
         self._jwks: KeySet | None = None
         self.oauth = OAuth()
         self.oauth.register(
-            name="keycloak",
-            server_metadata_url=f"{settings.KEYCLOAK_ISSUER}/.well-known/openid-configuration",
-            client_id=settings.KEYCLOAK_CLIENT_ID,
-            client_secret=settings.KEYCLOAK_CLIENT_SECRET,
-            client_kwargs={"scope": "openid email profile"},
+            name="zitadel",
+            server_metadata_url=f"{settings.ZITADEL_ISSUER}/.well-known/openid-configuration",
+            client_id=settings.ZITADEL_CLIENT_ID,
+            client_secret=settings.ZITADEL_CLIENT_SECRET,
+            client_kwargs={
+                "scope": "openid email profile offline_access",
+            },
         )
 
     async def get_jwks(self) -> KeySet:
@@ -25,7 +27,7 @@ class OAuthWrapper:
             return self._jwks
 
         async with httpx.AsyncClient() as client:
-            disc = await client.get(f"{settings.KEYCLOAK_ISSUER}/.well-known/openid-configuration")
+            disc = await client.get(f"{settings.ZITADEL_ISSUER}/.well-known/openid-configuration")
             disc.raise_for_status()
             discovery = disc.json()
 
@@ -46,19 +48,23 @@ class OAuthWrapper:
             return None
 
         try:
-            metadata = await self.oauth.keycloak.load_server_metadata()
+            metadata = await self.oauth.zitadel.load_server_metadata()
             token_endpoint_url = metadata.get("token_endpoint")
-            print(token_endpoint_url)
-            print(user_row.refresh_token)
+            print(f"das ist der refresh endpoint: {token_endpoint_url}")
+            print(f"das auch richtig {user_row.refresh_token}")
+            # Include client_secret for confidential clients (authorization code flow)
             data = {
-                "client_id": f"{settings.KEYCLOAK_CLIENT_ID}",
+                "client_id": f"{settings.ZITADEL_CLIENT_ID}",
+                "client_secret": settings.ZITADEL_CLIENT_SECRET,
                 "grant_type": "refresh_token",
                 "refresh_token": user_row.refresh_token,
-                "client_secret": settings.KEYCLOAK_CLIENT_SECRET,
             }
-            print(data)
+            print(f"das bekommt zitadel: {data}")
             async with httpx.AsyncClient() as client:
                 disc = await client.post(token_endpoint_url, data=data)
+                if disc.status_code != 200:
+                    print(f"=== REFRESH ERROR: Status {disc.status_code}")
+                    print(f"=== REFRESH ERROR: Response body: {disc.text}")
                 disc.raise_for_status()
                 result = disc.json()
 
@@ -67,34 +73,41 @@ class OAuthWrapper:
             return None
 
         # Erwartet: new_token hat wieder id_token, access_token, evtl. neuen refresh_token
-        new_access_token = result.get("access_token")
+        new_id_token = result.get("id_token")
         new_refresh_token = result.get("refresh_token")
 
-        if not new_access_token:
+        if not new_id_token:
             return None
 
-        # 4. Neues id_token validieren
+        # 4. Neues id_token validieren und premium status aktualisieren
         try:
-            new_claims = jwt.decode(new_access_token, await self.get_jwks())
+            new_claims = jwt.decode(new_id_token, await self.get_jwks())
             new_claims.validate()
 
-            roles = (new_claims.get("realm_access") or {}).get("roles") or []
+            # Extract Zitadel roles and update premium status
+            zitadel_roles = new_claims.get("urn:zitadel:iam:org:project:roles", {})
+            roles = list(zitadel_roles.keys()) if isinstance(zitadel_roles, dict) else []
             is_premium = "premium" in roles
+
             try:
-                self.repo.repo_set_is_premium(user_id, is_premium)  # ← Flag aktualisieren
+                self.repo.repo_set_is_premium(user_id, is_premium)
+                print(f"=== REFRESH: Updated premium status to {is_premium} for user {user_id}")
             except Exception as e:
-                print("Failed to update is_premium:", e)
+                print(f"Failed to update is_premium: {e}")
 
         except Exception as e:
             print("Refreshed token invalid:", e)
             return None
 
-        # 5. Refresh-Token ggf. rotieren
+        # 5. Refresh-Token ggf. rotieren (store new refresh token if Zitadel rotates it)
         if new_refresh_token:
             try:
+                # user_id is the function parameter from attempt_refresh
                 self.repo.repo_set_refresh_token(user_id, new_refresh_token)
+                print(f"=== REFRESH: Updated refresh token for user {user_id}")
             except Exception as e:
-                print("Failed to update refresh token in DB:", e)
+                print(f"Failed to update refresh token in DB: {e}")
 
         # 6. return an dispatch()
-        return (new_claims, new_access_token)
+        print(f"=== REFRESH: Successfully refreshed token for user {user_id}")
+        return (new_claims, new_id_token)

@@ -6,8 +6,8 @@ from app.admin.kc_admin import (
     add_realm_role_to_user,
     remove_realm_role_from_user,
 )
-from app.user_alchemy_repo import UserRepository
-from app.dependencies import get_user_repo
+from app.database.user_alchemy_repo import UserRepository
+from app.core.dependencies import get_user_repo
 from app.schemas.user_model import RoleChangeRequest
 
 

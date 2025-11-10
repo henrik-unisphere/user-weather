@@ -1,7 +1,7 @@
 import httpx
 from urllib.parse import urlparse
 from fastapi import HTTPException
-from app.auth.settings import settings
+from app.core.settings import settings
 
 # Build URLs from env
 KC_REALM = settings.KEYCLOAK_REALM

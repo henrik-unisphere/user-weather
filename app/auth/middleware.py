@@ -27,18 +27,19 @@ class JWTMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
         request.state.user = None
-        request.state.new_access_token = None
+        request.state.new_id_token = None
 
         # 1) Token aus Header (M2M) oder 2) Cookie (Browser)
         header_token = self._bearer_from_header(request)
-        access_token = header_token or request.cookies.get("access_token")
+        id_token = header_token or request.cookies.get("id_token")
 
-        if access_token:
+        if id_token:
             try:
-                claims = await self._decode_claims(access_token)
+                claims = await self._decode_claims(id_token)
                 # validate() kann ExpiredTokenError werfen
                 claims.validate()
                 request.state.user = self._claims_to_user_dict(claims)
+                print(f"=== MIDDLEWARE: User authenticated: {request.state.user}")
 
             except ExpiredTokenError:
                 # Nur Browser-Flow (Cookie) automatisch refreshen, nicht M2M
@@ -47,41 +48,42 @@ class JWTMiddleware(BaseHTTPMiddleware):
                         sub = claims.get("sub")  # claims existiert, weil decode() klappte
                         refreshed = await self.oauth_wrapper.attempt_refresh(sub)
                         if refreshed:
-                            new_claims, new_access_token = refreshed
+                            new_claims, new_id_token = refreshed
                             new_claims.validate()
                             request.state.user = self._claims_to_user_dict(new_claims)
-                            request.state.new_access_token = new_access_token
+                            request.state.new_id_token = new_id_token
                     except Exception:
                         request.state.user = None
                 else:
                     # Header-Token abgelaufen -> keine Auto-Refresh-Logik
                     request.state.user = None
 
-            except Exception:
+            except Exception as e:
                 # Ungültiges Token, Signature, etc.
+                print(f"=== MIDDLEWARE: Token validation failed: {e}")
                 request.state.user = None
 
         # Pipeline weiterführen
         response = await call_next(request)
 
         # Wenn wir per Browser-Flow (kein Header) refreshed haben: Cookie setzen
-        if request.state.new_access_token and not header_token:
+        if request.state.new_id_token and not header_token:
             response.set_cookie(
-                "access_token",
-                request.state.new_access_token,
+                "id_token",
+                request.state.new_id_token,
                 httponly=True,
             )
 
         return response
 
     def _claims_to_user_dict(self, claims) -> dict:  # noqa: ANN001
-        realm_roles = list((claims.get("realm_access") or {}).get("roles") or [])
+        # Extract Zitadel roles from project-specific claim
+        zitadel_roles = claims.get("urn:zitadel:iam:org:project:roles", {})
+        roles = list(zitadel_roles.keys()) if isinstance(zitadel_roles, dict) else []
+
         return {
             "sub": claims.get("sub"),
-            "name": claims.get("name") or claims.get("preferred_username"),
+            "name": claims.get("preferred_username"),
             "email": claims.get("email"),
-            "roles": realm_roles,
-            # optional nützlich für M2M-Erkennung:
-            # "azp": claims.get("azp"),
-            # "preferred_username": claims.get("preferred_username"),
+            "roles": roles,
         }

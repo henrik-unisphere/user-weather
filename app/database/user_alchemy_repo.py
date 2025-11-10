@@ -1,4 +1,3 @@
-import os
 from typing import Optional
 from sqlalchemy import Boolean, String, create_engine, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, Session
@@ -36,7 +35,7 @@ class UserORM(Base):
 
 class UserRepository:
     def __init__(self, dsn: Optional[str] = None) -> None:
-        self._dsn = dsn or os.getenv("DATABASE_URL", "postgresql+psycopg://postgres:secret@localhost:5432/appdb")
+        self._dsn = dsn
         self._engine = create_engine(self._dsn, echo=False, future=True)
         Base.metadata.create_all(self._engine)
 
