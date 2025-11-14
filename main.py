@@ -16,7 +16,6 @@ app.add_middleware(JWTMiddleware, oauth_wrapper=get_oauth_wrapper(get_user_repo(
 app.include_router(auth_routes.router, tags=["auth"])
 app.include_router(weather.router, tags=["weather"])
 app.include_router(admin_roles.router)
-# app.include_router(admin_clients.router)
 
 
 @app.get("/health")
