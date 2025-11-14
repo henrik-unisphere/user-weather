@@ -15,6 +15,11 @@ class Settings(BaseSettings):
     ZITADEL_POST_LOGOUT_REDIRECT_URI: str
     ZITADEL_SCOPES: str
 
+    # Admin machine client for managing users/roles
+    ZITADEL_ADMIN_CLIENT_ID: str
+    ZITADEL_ADMIN_CLIENT_SECRET: str
+    ZITADEL_PROJECT_ID: str  # Your project ID in Zitadel
+
     model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore",
